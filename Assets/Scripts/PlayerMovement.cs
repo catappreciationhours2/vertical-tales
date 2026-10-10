@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class NewMonoBehaviourScript : MonoBehaviour
@@ -19,11 +20,11 @@ public class NewMonoBehaviourScript : MonoBehaviour
     [SerializeField] private float dashAttackDuration = 0.2f;
     [SerializeField] private float attackForwardDashForce = 4f;
     [SerializeField] private float inputBufferWindow = 0.15f;
-    
+
     [Header("Hit Detection")]
-    [SerializeField] private float attackRange = 1.2f;      
-    [SerializeField] private float attackRadius = 0.8f;    
-    [SerializeField] private LayerMask enemyLayers;        
+    [SerializeField] private float attackRange = 1.2f;
+    [SerializeField] private float attackRadius = 0.8f;
+    [SerializeField] private LayerMask enemyLayers;
     [SerializeField] private int attackDamage = 10;
     [SerializeField] private int dashAttackDamage = 18;
     [SerializeField] private float normalKnockbackForce = 12f;
@@ -31,9 +32,27 @@ public class NewMonoBehaviourScript : MonoBehaviour
 
     [Header("Components")]
     [SerializeField] private Transform spriteContainer;
+    [SerializeField] private GameObject osseonGameObject;
+    [SerializeField] private GameObject mycenaGameObject;
     private Rigidbody2D myRigidBody;
     private Animator anim;
     private SpriteRenderer spriteRenderer;
+
+    // I don't know why, but I wanted to make this general in case we added another character??
+    // IDK - Chcuk
+    private enum Character { Osseon, Mycena }
+    private int numCharacters = 2;
+
+    [Header("switching")]
+    [SerializeField] private Character currentCharacter;
+    [SerializeField] private float switchCooldownTime = 3.0f;
+    private bool canSwitch = true;
+    private float switchCooldownTimer;
+
+    private int currentCharacterIndex; // 0 - Osseon, 1 - Mycena
+    private IPlayableCharacter osseonScript;
+    private IPlayableCharacter mycenaScript;
+    private IPlayableCharacter currentCharacterScript;
 
     // Internal State Machine
     private enum CombatState { IdleMove, Dashing, Attacking, DashAttacking }
@@ -53,13 +72,15 @@ public class NewMonoBehaviourScript : MonoBehaviour
     {
         myRigidBody = GetComponent<Rigidbody2D>();
 
-        if (spriteContainer != null)
-        {
-            spriteRenderer = spriteContainer.GetComponent<SpriteRenderer>();
-            anim = spriteContainer.GetComponent<Animator>();
-            originalSpriteScale = spriteContainer.localScale;
-        }
-        else
+        // Gets the characters scripts from their gameobjects
+        osseonScript = osseonGameObject.GetComponent<OsseonChararacterScript>();
+        mycenaScript = mycenaGameObject.GetComponent<MycenaCharacterScript>();
+
+        // TEMPARARY, I don't knwo how we want to do this yet, so i'm having it be osseon by default
+        SwitchCharacter(Character.Osseon);
+
+        // For Saftey
+        if (spriteContainer == null)
         {
             spriteContainer = transform;
             spriteRenderer = GetComponent<SpriteRenderer>();
@@ -120,6 +141,14 @@ public class NewMonoBehaviourScript : MonoBehaviour
             attackBuffered = true;
             bufferTimer = inputBufferWindow;
         }
+
+        // Basic switching, haven't implimented it with any of the other actions
+        if (Input.GetKeyDown(KeyCode.V) && canSwitch)
+        {
+            canSwitch = false;
+            switchCooldownTimer = switchCooldownTime;
+            SwitchCharacter(GetNextCharacter(currentCharacterIndex));
+        }
     }
 
     private void UpdateBuffer()
@@ -130,6 +159,15 @@ public class NewMonoBehaviourScript : MonoBehaviour
             if (bufferTimer <= 0f)
             {
                 attackBuffered = false;
+            }
+        }
+
+        if (!canSwitch)
+        {
+            switchCooldownTimer -= Time.deltaTime;
+            if (switchCooldownTimer <= 0f)
+            {
+                canSwitch = true;
             }
         }
     }
@@ -295,5 +333,56 @@ public class NewMonoBehaviourScript : MonoBehaviour
         Gizmos.color = Color.red;
         Vector2 attackPoint = (Vector2)transform.position + (lookDirection * attackRange);
         Gizmos.DrawWireSphere(attackPoint, attackRadius);
+    }
+
+    // Changes the character by switching all neccesary attributes
+    private void SwitchCharacter(Character character)
+    {
+        // Sets the new current character
+        currentCharacter = character;
+        currentCharacterIndex = (int)character;
+        Debug.Log($"Current Character Index: {currentCharacterIndex}");
+
+        // Gets the scripts for the new character
+        switch (character)
+        {
+            case Character.Osseon:
+                osseonGameObject.SetActive(true);
+                mycenaGameObject.SetActive(false);
+                currentCharacterScript = osseonScript;
+                break;
+            case Character.Mycena:
+                osseonGameObject.SetActive(false);
+                mycenaGameObject.SetActive(true);
+                currentCharacterScript = mycenaScript;
+                break;
+        }
+
+        // Graphics 
+        anim = currentCharacterScript.GetAnimator();
+        spriteRenderer = currentCharacterScript.GetSpriteRenderer();
+        originalSpriteScale = spriteContainer.localScale;
+
+        // Attack and hitbox
+        AttackHitboxSettings s = currentCharacterScript.GetAttackHitboxSettings();
+        attackDuration = s.attackDuration;
+        dashAttackDuration = s.dashAttackDuration;
+        inputBufferWindow = s.inputBufferWindow;
+        attackForwardDashForce = s.attackForwardDashForce;
+
+        // other stuff im tired
+        HitDetectionSettings h = currentCharacterScript.GetHitDetectionSettings();
+        attackDamage = h.attackDamage;
+        dashAttackDamage = h.dashAttackDamage;
+        attackRange = h.attackRange;
+        attackRadius = h.attackRadius;
+        normalKnockbackForce = h.normalKnockbackForce;
+        dashKnockbackForce = h.dashKnockbackForce;
+    }
+
+    private Character GetNextCharacter(int startingIndex)
+    {
+        //Returns the character next in line
+        return (Character)((startingIndex + 1) % numCharacters);
     }
 }
