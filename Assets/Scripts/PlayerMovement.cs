@@ -2,7 +2,7 @@ using System.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class NewMonoBehaviourScript : MonoBehaviour
+public class PlayerMovement : MonoBehaviour //NewMonoBehaviourScript
 {
     [Header("Movement & Input")]
     public float speed = 5f;
@@ -73,6 +73,7 @@ public class NewMonoBehaviourScript : MonoBehaviour
         myRigidBody = GetComponent<Rigidbody2D>();
 
         // Gets the characters scripts from their gameobjects
+        // Note, these scripts compile before the playe movement script
         osseonScript = osseonGameObject.GetComponent<OsseonChararacterScript>();
         mycenaScript = mycenaGameObject.GetComponent<MycenaCharacterScript>();
 
@@ -87,6 +88,8 @@ public class NewMonoBehaviourScript : MonoBehaviour
             anim = GetComponent<Animator>();
             originalSpriteScale = Vector3.one;
         }
+
+        Debug.Assert(anim != null);
     }
 
     void Update()
@@ -113,19 +116,13 @@ public class NewMonoBehaviourScript : MonoBehaviour
             {
                 lookDirection = change.normalized;
 
-                if (anim != null)
-                {
-                    anim.SetFloat("MoveX", change.x);
-                    anim.SetFloat("MoveY", change.y);
-                    anim.SetBool("moving", true);
-                }
+                anim.SetFloat("MoveX", change.x);
+                anim.SetFloat("MoveY", change.y);
+                anim.SetBool("moving", true);
             }
             else
             {
-                if (anim != null)
-                {
-                    anim.SetBool("moving", false);
-                }
+                anim.SetBool("moving", false);
             }
         }
 
@@ -363,6 +360,10 @@ public class NewMonoBehaviourScript : MonoBehaviour
         spriteRenderer = currentCharacterScript.GetSpriteRenderer();
         originalSpriteScale = spriteContainer.localScale;
 
+        // Updates the anim so the character doesn't always start facing South
+        anim.SetFloat("MoveX", lookDirection.x);
+        anim.SetFloat("MoveY", lookDirection.y);
+
         // Attack and hitbox
         AttackHitboxSettings s = currentCharacterScript.GetAttackHitboxSettings();
         attackDuration = s.attackDuration;
@@ -378,6 +379,8 @@ public class NewMonoBehaviourScript : MonoBehaviour
         attackRadius = h.attackRadius;
         normalKnockbackForce = h.normalKnockbackForce;
         dashKnockbackForce = h.dashKnockbackForce;
+
+        Debug.Assert(anim != null);
     }
 
     private Character GetNextCharacter(int startingIndex)

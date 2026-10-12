@@ -1,0 +1,7 @@
+(10/11/26)
+Added a null check for anim at movement script initialization and after character change.
+	Subsequently removed the now superfluous checks before anim variable change.
+Made it so the character faces a consistent direction after character change.
+Fixed bug where player would not have animation at start and would have to change character first.
+	Note: to do this I make it so the player movement script compiles after the character scripts.
+	Note: In the process I also changed the internal name of the player movement script from "NewMonoBehaviourScript" to "PlayerMovement".
